@@ -1,0 +1,7 @@
+name = "image-remove-worker"
+main = "../src/index.ts"
+compatibility_date = "2024-01-01"
+account_id = "345c51f0cfc20d36e6160c8d152ffec6"
+
+[vars]
+REMOVE_BG_API_KEY = "AP32YL7M2jpX9RJ43Z35PAFB"
