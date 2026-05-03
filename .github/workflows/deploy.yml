@@ -1,10 +1,8 @@
 name: Deploy to Cloudflare
 
 on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
+  - push
+  - workflow_dispatch
 
 jobs:
   deploy:
@@ -27,22 +25,15 @@ jobs:
           npm ci
           npm install opennextjs-cloudflare @opennextjs/cloudflare
 
-      - name: Inject OAuth secrets into wrangler.jsonc
+      - name: Patch wrangler.jsonc with real OAuth secrets
         run: |
-          node patch.mjs
-        env:
-          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-
-      - name: Create patch script
-        run: |
-          cat > patch.mjs << 'PATCHEOF'
-const fs = require('fs');
-let c = fs.readFileSync('wrangler.jsonc','utf8');
-c = c.replace(/"GOOGLE_CLIENT_ID"\s*:\s*"[^"]*"/, '"GOOGLE_CLIENT_ID": "'+process.env.GOOGLE_CLIENT_ID+'"');
-c = c.replace(/"GOOGLE_CLIENT_SECRET"\s*:\s*"[^"]*"/, '"GOOGLE_CLIENT_SECRET": "'+process.env.GOOGLE_CLIENT_SECRET+'"');
-fs.writeFileSync('wrangler.jsonc',c);
-PATCHEOF
+          node -e "
+          const fs=require('fs');
+          let c=fs.readFileSync('wrangler.jsonc','utf8');
+          c=c.replace(/GOOGLE_CLIENT_ID.+?,/,'GOOGLE_CLIENT_ID: "'+process.env.GOOGLE_CLIENT_ID+'",');
+          c=c.replace(/GOOGLE_CLIENT_SECRET.+?,/,'GOOGLE_CLIENT_SECRET: "'+process.env.GOOGLE_CLIENT_SECRET+'",');
+          fs.writeFileSync('wrangler.jsonc',c);
+          "
 
       - name: Build and Deploy
         run: npm run deploy
