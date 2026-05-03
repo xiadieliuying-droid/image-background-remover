@@ -91,13 +91,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(`${url.origin}/?error=db_not_configured`);
     }
 
-    // Check if user exists
-    console.log('[DEBUG] About to query users with google_id:', userInfo.sub);
-    console.log('[DEBUG] d1 object:', typeof d1, d1 ? 'exists' : 'missing');
-    let user = await d1
-      .prepare('SELECT * FROM users WHERE google_id = ?')
-      .bind(userInfo.sub)
-      .first();
+    let user: Record<string, unknown>;
+    
+    try {
+      // Check if user exists
+      const userResult = await d1
+        .prepare('SELECT * FROM users WHERE google_id = ?')
+        .bind(userInfo.sub)
+        .first();
+      user = userResult as Record<string, unknown> | undefined;
+      console.log('[DEBUG] user query result:', user);
+    } catch (err) {
+      console.error('[DEBUG] Error checking user:', err);
+      throw new Error(`user_query_error: ${err instanceof Error ? err.message : String(err)}`);
+    }
 
     if (!user) {
       // Create new user
