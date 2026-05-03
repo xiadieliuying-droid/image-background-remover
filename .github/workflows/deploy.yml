@@ -25,7 +25,12 @@ jobs:
       - name: Install dependencies
         run: |
           npm ci
-          npm install opennextjs-cloudflare @opennextjs/cloudflare
+          npm install opennextjs-cloudflare @opennextjs/cloudflare yq
+
+      - name: Inject OAuth secrets into wrangler.jsonc
+        run: |
+          yq -i '.vars.GOOGLE_CLIENT_ID = env.GOOGLE_CLIENT_ID | .vars.GOOGLE_CLIENT_SECRET = env.GOOGLE_CLIENT_SECRET' wrangler.jsonc
+          cat wrangler.jsonc
 
       - name: Build and Deploy
         run: npm run deploy
