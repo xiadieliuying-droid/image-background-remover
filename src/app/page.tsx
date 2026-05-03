@@ -79,7 +79,7 @@ export default function Home() {
 
       if (!res.ok) {
         const data = await res.json();
-        if (data.error === 'no_credits') {
+        if (data.error === 'login_required' || data.error === 'no_credits') {
           window.location.href = '/api/auth/login';
           return;
         }
