@@ -66,9 +66,20 @@ export async function GET(request: NextRequest) {
       throw new Error('Failed to exchange code for tokens');
     }
 
-    const tokens: GoogleTokenResponse = await tokenRes.json();
+    // Log tokens info (not the actual tokens)
+    console.log('[DEBUG] token response status:', tokenRes.status);
+    console.log('[DEBUG] token response ok:', tokenRes.ok);
+    const tokensText = await tokenRes.text();
+    console.log('[DEBUG] token response body:', tokensText.slice(0, 200));
+    let tokens: GoogleTokenResponse;
+    try {
+      tokens = JSON.parse(tokensText);
+    } catch {
+      throw new Error(`token_parse_error: ${tokensText.slice(0, 100)}`);
+    }
 
     // Get user info
+    console.log('[DEBUG] about to fetch userinfo with access_token');
     const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
       headers: { Authorization: `Bearer ${tokens.access_token}` },
     });
@@ -77,13 +88,22 @@ export async function GET(request: NextRequest) {
       throw new Error('Failed to get user info');
     }
 
-    const userInfo: GoogleUserInfo = await userInfoRes.json();
+    const userInfoRaw = await userInfoRes.text();
+    console.log('[DEBUG] userinfo response:', userInfoRaw.slice(0, 200));
+    let userInfo: GoogleUserInfo;
+    try {
+      userInfo = JSON.parse(userInfoRaw);
+    } catch {
+      throw new Error(`userinfo_parse_error: ${userInfoRaw.slice(0, 100)}`);
+    }
+    console.log('[DEBUG] parsed userInfo:', JSON.stringify(userInfo));
 
     // Use D1 to find or create user
     const { env } = await getCloudflareContext({ async: true });
     console.log('[DEBUG] getCloudflareContext env keys:', Object.keys(env));
-    console.log('[DEBUG] DB binding:', (env as Record<string, unknown>).DB);
+    console.log('[DEBUG] DB binding:', (env as Record<string, unknown>).DB ? 'exists' : 'missing');
     console.log('[DEBUG] userInfo from Google:', JSON.stringify(userInfo));
+    console.log('[DEBUG] userInfo.sub:', userInfo.sub, 'type:', typeof userInfo.sub);
     // @ts-ignore - DB binding not in CloudflareEnv types
     const d1: any = (env as Record<string, unknown>).DB;
     
