@@ -80,8 +80,9 @@ export async function GET(request: NextRequest) {
     const userInfo: GoogleUserInfo = await userInfoRes.json();
 
     // Use D1 to find or create user
-    // @ts-ignore - Cloudflare Workers binding
-    const d1 = (process.env as any).DB as D1Database;
+    const { env } = await getCloudflareContext({ async: true });
+    // @ts-ignore - DB binding added in wrangler.jsonc but not in CloudflareEnv types
+    const d1 = (env as Record<string, unknown>).DB as D1Database;
     
     if (!d1) {
       return NextResponse.redirect(`${url.origin}/?error=db_not_configured`);
