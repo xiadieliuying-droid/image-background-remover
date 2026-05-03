@@ -20,6 +20,7 @@ export default function Home() {
   const [result, setResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [user, setUser] = useState<UserInfo | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
@@ -29,8 +30,13 @@ export default function Home() {
   const MAX_SIZE = 10 * 1024 * 1024; // 10MB
   const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
-  // Check auth on mount
+  // Check auth on mount and handle error params
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const err = params.get('error');
+    if (err === 'auth_failed') setLoginError('登录失败，请重试');
+    else if (err === 'db_not_configured') setLoginError('服务配置问题，请联系支持');
+    
     fetch('/api/auth/me')
       .then(r => r.json())
       .then(data => {
@@ -146,6 +152,11 @@ export default function Home() {
         </div>
 
         {/* Auth bar */}
+        {loginError && (
+          <div className="mb-4 bg-red-500/20 border border-red-500/50 rounded-xl px-4 py-2 text-red-300 text-sm text-center">
+            ❌ {loginError}
+          </div>
+        )}
         <div className="mb-6 flex items-center justify-between bg-slate-800/50 rounded-xl px-4 py-3">
           {checkingAuth ? (
             <span className="text-slate-400 text-sm">加载中...</span>
