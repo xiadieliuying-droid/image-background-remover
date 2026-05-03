@@ -81,6 +81,8 @@ export async function GET(request: NextRequest) {
 
     // Use D1 to find or create user
     const { env } = await getCloudflareContext({ async: true });
+    console.log('[DEBUG] getCloudflareContext env keys:', Object.keys(env));
+    console.log('[DEBUG] DB binding:', env.DB);
     // @ts-ignore - DB binding added in wrangler.jsonc but not in CloudflareEnv types
     const d1 = (env as Record<string, unknown>).DB as D1Database;
     
