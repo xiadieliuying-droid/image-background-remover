@@ -1,4 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
+import { getCloudflareContext } from '@opennextjs/cloudflare/cloudflare-context';
 
 interface GoogleTokenResponse {
   access_token: string;
@@ -79,10 +80,8 @@ export async function GET(request: NextRequest) {
     const userInfo: GoogleUserInfo = await userInfoRes.json();
 
     // Use D1 to find or create user
-    const env = (globalThis as any).__cf_env__ || process.env;
-    
     // @ts-ignore - Cloudflare Workers binding
-    const d1 = env.DB as D1Database;
+    const d1 = (process.env as any).DB as D1Database;
     
     if (!d1) {
       return NextResponse.redirect(`${url.origin}/?error=db_not_configured`);
