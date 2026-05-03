@@ -104,6 +104,7 @@ export async function GET(request: NextRequest) {
     console.log('[DEBUG] DB binding:', (env as Record<string, unknown>).DB ? 'exists' : 'missing');
     console.log('[DEBUG] userInfo from Google:', JSON.stringify(userInfo));
     console.log('[DEBUG] userInfo.sub:', userInfo.sub, 'type:', typeof userInfo.sub);
+    console.log('[DEBUG] userInfo keys:', Object.keys(userInfo));
     // @ts-ignore - DB binding not in CloudflareEnv types
     const d1: any = (env as Record<string, unknown>).DB;
     
@@ -111,18 +112,26 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(`${url.origin}/?error=db_not_configured`);
     }
 
+    // Validate userInfo.sub exists
+    if (!userInfo.sub) {
+      throw new Error(`userInfo.sub is undefined! userInfo=${JSON.stringify(userInfo)}`);
+    }
+
     let user: Record<string, unknown> | null = null;
     
     try {
       // Check if user exists
+      const googleId: string = userInfo.sub;
+      console.log('[DEBUG] binding googleId:', JSON.stringify(googleId), 'len:', googleId.length);
       const userResult = await d1
-        .prepare('SELECT * FROM users WHERE google_id = ?')
-        .bind(userInfo.sub)
+        .prepare('SELECT id, email, name, google_id FROM users WHERE google_id = ?')
+        .bind(googleId)
         .first();
       user = userResult as Record<string, unknown> | null;
       console.log('[DEBUG] user query result:', user);
     } catch (err) {
       console.error('[DEBUG] Error checking user:', err);
+      console.error('[DEBUG] userInfo.sub type:', typeof userInfo.sub, 'value:', JSON.stringify(userInfo.sub));
       throw new Error(`user_query_error: ${err instanceof Error ? err.message : String(err)}`);
     }
 
