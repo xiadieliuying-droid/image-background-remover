@@ -1,8 +1,59 @@
 import { NextResponse } from 'next/server';
 import axios from 'axios';
+import { D1Client } from '@opennextjs/cloudflare/adapters/d1';
+
+interface AuthPayload {
+  sub: string;
+  email: string;
+  name: string;
+  userId: number;
+  iat: number;
+  exp: number;
+}
+
+async function verifyJWT(token: string, secret: string): Promise<AuthPayload | null> {
+  try {
+    const [encodedHeader, encodedPayload, signature] = token.split('.');
+    const signatureInput = `${encodedHeader}.${encodedPayload}`;
+    
+    const key = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['verify']
+    );
+    
+    const isValid = await crypto.subtle.verify(
+      'HMAC',
+      await key,
+      Buffer.from(signature, 'base64url'),
+      new TextEncoder().encode(signatureInput)
+    );
+    
+    if (!isValid) return null;
+    
+    const payload = JSON.parse(atob(encodedPayload));
+    return payload as AuthPayload;
+  } catch {
+    return null;
+  }
+}
 
 export async function POST(request: Request) {
   try {
+    // Check authentication
+    const token = request.cookies.get('auth_token')?.value;
+    if (!token) {
+      return NextResponse.json({ error: 'login_required', message: '请先登录' }, { status: 401 });
+    }
+    
+    const jwtSecret = process.env.JWT_SECRET || 'image-background-remover-secret-key';
+    const payload = await verifyJWT(token, jwtSecret);
+    if (!payload) {
+      return NextResponse.json({ error: 'invalid_token', message: '登录已过期，请重新登录' }, { status: 401 });
+    }
+
     const formData = await request.formData();
     const image = formData.get('image') as File | null;
 

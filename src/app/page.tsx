@@ -162,7 +162,7 @@ export default function Home() {
               )}
             </div>
           ) : (
-            <span className="text-slate-400 text-sm">未登录 · 免费试用 1 次</span>
+            <span className="text-slate-400 text-sm">登录后可使用</span>
           )}
 
           {user ? (
