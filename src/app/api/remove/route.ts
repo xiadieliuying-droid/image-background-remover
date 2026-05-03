@@ -1,6 +1,5 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import axios from 'axios';
-import { D1Client } from '@opennextjs/cloudflare/adapters/d1';
 
 interface AuthPayload {
   sub: string;
@@ -40,7 +39,7 @@ async function verifyJWT(token: string, secret: string): Promise<AuthPayload | n
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     // Check authentication
     const token = request.cookies.get('auth_token')?.value;
