@@ -23,12 +23,12 @@ jobs:
           node-version: '22'
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm ci
+          npm install opennextjs-cloudflare @opennextjs/cloudflare
 
       - name: Build and Deploy
-        run: |
-          npm install opennextjs-cloudflare @opennextjs/cloudflare
-          GOOGLE_CLIENT_ID="$GOOGLE_CLIENT_ID" GOOGLE_CLIENT_SECRET="$GOOGLE_CLIENT_SECRET"             npx opennextjs-cloudflare deploy
+        run: npm run deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
