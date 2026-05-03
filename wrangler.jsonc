@@ -7,6 +7,9 @@
 		"nodejs_compat",
 		"global_fetch_strictly_public"
 	],
+	"vars": {
+		"REMOVE_BG_API_KEY": "AP32YL7M2jpX9RJ43Z35PAFB"
+	},
 	"assets": {
 		"directory": ".open-next/assets",
 		"binding": "ASSETS"
