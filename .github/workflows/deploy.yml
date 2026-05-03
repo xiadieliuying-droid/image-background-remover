@@ -26,14 +26,10 @@ jobs:
           npm install opennextjs-cloudflare @opennextjs/cloudflare
 
       - name: Patch wrangler.jsonc with real OAuth secrets
-        run: |
-          node -e "
-          const fs=require('fs');
-          let c=fs.readFileSync('wrangler.jsonc','utf8');
-          c=c.replace(/GOOGLE_CLIENT_ID.+?,/,'GOOGLE_CLIENT_ID: "'+process.env.GOOGLE_CLIENT_ID+'",');
-          c=c.replace(/GOOGLE_CLIENT_SECRET.+?,/,'GOOGLE_CLIENT_SECRET: "'+process.env.GOOGLE_CLIENT_SECRET+'",');
-          fs.writeFileSync('wrangler.jsonc',c);
-          "
+        run: node patch.js
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
 
       - name: Build and Deploy
         run: npm run deploy
