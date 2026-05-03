@@ -29,25 +29,26 @@ jobs:
 
       - name: Inject OAuth secrets into wrangler.jsonc
         run: |
-          cat > patch.mjs << 'PATCHSCRIPT'
-
-const fs = require('fs');
-let content = fs.readFileSync('wrangler.jsonc', 'utf8');
-content = content.replace(/"GOOGLE_CLIENT_ID"\s*:\s*"[^"]*"/, '"GOOGLE_CLIENT_ID": "' + process.env.GOOGLE_CLIENT_ID + '"');
-content = content.replace(/"GOOGLE_CLIENT_SECRET"\s*:\s*"[^"]*"/, '"GOOGLE_CLIENT_SECRET": "' + process.env.GOOGLE_CLIENT_SECRET + '"');
-fs.writeFileSync('wrangler.jsonc', content);
-console.log('Updated GOOGLE vars in wrangler.jsonc');
-PATCHSCRIPT
           node patch.mjs
         env:
-          GOOGLE_CLIENT_ID: ${ secrets.GOOGLE_CLIENT_ID }
-          GOOGLE_CLIENT_SECRET: ${ secrets.GOOGLE_CLIENT_SECRET }
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+
+      - name: Create patch script
+        run: |
+          cat > patch.mjs << 'PATCHEOF'
+const fs = require('fs');
+let c = fs.readFileSync('wrangler.jsonc','utf8');
+c = c.replace(/"GOOGLE_CLIENT_ID"\s*:\s*"[^"]*"/, '"GOOGLE_CLIENT_ID": "'+process.env.GOOGLE_CLIENT_ID+'"');
+c = c.replace(/"GOOGLE_CLIENT_SECRET"\s*:\s*"[^"]*"/, '"GOOGLE_CLIENT_SECRET": "'+process.env.GOOGLE_CLIENT_SECRET+'"');
+fs.writeFileSync('wrangler.jsonc',c);
+PATCHEOF
 
       - name: Build and Deploy
         run: npm run deploy
         env:
-          CLOUDFLARE_API_TOKEN: ${ secrets.CLOUDFLARE_API_TOKEN }
-          CLOUDFLARE_ACCOUNT_ID: ${ secrets.CLOUDFLARE_ACCOUNT_ID }
-          REMOVE_BG_API_KEY: ${ secrets.REMOVE_BG_API_KEY }
-          GOOGLE_CLIENT_ID: ${ secrets.GOOGLE_CLIENT_ID }
-          GOOGLE_CLIENT_SECRET: ${ secrets.GOOGLE_CLIENT_SECRET }
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          REMOVE_BG_API_KEY: ${{ secrets.REMOVE_BG_API_KEY }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
