@@ -20,7 +20,7 @@
 		{
 			"binding": "DB",
 			"database_name": "image-background-remover-db",
-			"database_id": "f64e8b2c4c40c40f60c28c21e1e8e9e3"
+			"database_id": "e64039dd-cb4e-4710-bfa9-ccd3949735c0"
 		}
 	],
 	"services": [
