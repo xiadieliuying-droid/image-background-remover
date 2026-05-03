@@ -83,6 +83,7 @@ export async function GET(request: NextRequest) {
     const { env } = await getCloudflareContext({ async: true });
     console.log('[DEBUG] getCloudflareContext env keys:', Object.keys(env));
     console.log('[DEBUG] DB binding:', (env as Record<string, unknown>).DB);
+    console.log('[DEBUG] userInfo from Google:', JSON.stringify(userInfo));
     // @ts-ignore - DB binding added in wrangler.jsonc but not in CloudflareEnv types
     const d1 = (env as Record<string, unknown>).DB as D1Database;
     
@@ -91,6 +92,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if user exists
+    console.log('[DEBUG] About to query users with google_id:', userInfo.sub);
+    console.log('[DEBUG] d1 object:', typeof d1, d1 ? 'exists' : 'missing');
     let user = await d1
       .prepare('SELECT * FROM users WHERE google_id = ?')
       .bind(userInfo.sub)
