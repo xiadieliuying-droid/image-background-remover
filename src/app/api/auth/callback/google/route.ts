@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(`${url.origin}/?error=db_not_configured`);
     }
 
-    let user: Record<string, unknown>;
+    let user: Record<string, unknown> | null = null;
     
     try {
       // Check if user exists
@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
         .prepare('SELECT * FROM users WHERE google_id = ?')
         .bind(userInfo.sub)
         .first();
-      user = userResult as Record<string, unknown> | undefined;
+      user = userResult as Record<string, unknown> | null;
       console.log('[DEBUG] user query result:', user);
     } catch (err) {
       console.error('[DEBUG] Error checking user:', err);
