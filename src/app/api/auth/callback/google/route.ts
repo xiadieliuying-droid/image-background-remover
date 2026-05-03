@@ -84,8 +84,8 @@ export async function GET(request: NextRequest) {
     console.log('[DEBUG] getCloudflareContext env keys:', Object.keys(env));
     console.log('[DEBUG] DB binding:', (env as Record<string, unknown>).DB);
     console.log('[DEBUG] userInfo from Google:', JSON.stringify(userInfo));
-    // @ts-ignore - DB binding added in wrangler.jsonc but not in CloudflareEnv types
-    const d1 = (env as Record<string, unknown>).DB as D1Database;
+    // @ts-ignore - DB binding not in CloudflareEnv types
+    const d1: any = (env as Record<string, unknown>).DB;
     
     if (!d1) {
       return NextResponse.redirect(`${url.origin}/?error=db_not_configured`);
