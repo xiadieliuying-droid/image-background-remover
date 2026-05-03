@@ -112,9 +112,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(`${url.origin}/?error=db_not_configured`);
     }
 
-    // Validate userInfo.sub exists
-    if (!userInfo.sub) {
-      throw new Error(`userInfo.sub is undefined! userInfo=${JSON.stringify(userInfo)}`);
+    // Validate userInfo.sub exists and is a non-empty string
+    if (typeof userInfo.sub !== 'string' || userInfo.sub.length === 0) {
+      throw new Error(`userInfo.sub is invalid! type=${typeof userInfo.sub} value=${JSON.stringify(userInfo.sub)} userInfo=${JSON.stringify(userInfo)}`);
     }
 
     let user: Record<string, unknown> | null = null;
@@ -122,7 +122,12 @@ export async function GET(request: NextRequest) {
     try {
       // Check if user exists
       const googleId: string = userInfo.sub;
-      console.log('[DEBUG] binding googleId:', JSON.stringify(googleId), 'len:', googleId.length);
+      console.log('[DEBUG] binding googleId:', JSON.stringify(googleId), 'len:', googleId.length, 'bytes:', Buffer.byteLength(googleId, 'utf8'));
+      
+      // Pre-flight: try a simple query first to verify d1 works
+      const testQuery = await d1.prepare('SELECT 1 as test').first();
+      console.log('[DEBUG] test query result:', testQuery);
+      
       const userResult = await d1
         .prepare('SELECT id, email, name, google_id FROM users WHERE google_id = ?')
         .bind(googleId)
@@ -131,7 +136,8 @@ export async function GET(request: NextRequest) {
       console.log('[DEBUG] user query result:', user);
     } catch (err) {
       console.error('[DEBUG] Error checking user:', err);
-      console.error('[DEBUG] userInfo.sub type:', typeof userInfo.sub, 'value:', JSON.stringify(userInfo.sub));
+      console.error('[DEBUG] googleId type:', typeof userInfo.sub, 'json:', JSON.stringify(userInfo.sub), 'len:', userInfo.sub?.length);
+      console.error('[DEBUG] Buffer of googleId:', Buffer.from(String(userInfo.sub), 'utf8').toString('hex'));
       throw new Error(`user_query_error: ${err instanceof Error ? err.message : String(err)}`);
     }
 
