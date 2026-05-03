@@ -46,7 +46,7 @@ export default function Home() {
       const formData = new FormData();
       formData.append('image', file);
 
-      const res = await fetch('https://image-remove-worker.xiadieliuying.workers.dev/api/remove', { method: 'POST', body: formData });
+      const res = await fetch('/api/remove', { method: 'POST', body: formData });
 
       if (!res.ok) {
         const data = await res.json();
