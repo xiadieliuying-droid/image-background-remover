@@ -40,9 +40,11 @@ interface CreditPackage {
 }
 
 const CREDIT_PACKAGES: CreditPackage[] = [
+  { id: 'credits_single', name: 'Single', credits: 1, price: 0.99 },
   { id: 'credits_10', name: '10 Credits', credits: 10, price: 4.99 },
-  { id: 'credits_50', name: '50 Credits', credits: 50, price: 19.99 },
-  { id: 'credits_100', name: '100 Credits', credits: 100, price: 34.99 },
+  { id: 'credits_100', name: '100 Credits', credits: 100, price: 79 },
+  { id: 'credits_500', name: '500 Credits', credits: 500, price: 349 },
+  { id: 'credits_1000', name: '1000 Credits', credits: 1000, price: 599 },
 ];
 
 // Create a one-time order for credits

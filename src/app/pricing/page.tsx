@@ -17,15 +17,17 @@ interface CreditPackage {
 }
 
 const CREDIT_PACKAGES: CreditPackage[] = [
+  { id: 'credits_single', name: 'Single', credits: 1, price: 0.99 },
   { id: 'credits_10', name: '10 Credits', credits: 10, price: 4.99 },
-  { id: 'credits_50', name: '50 Credits', credits: 50, price: 19.99 },
-  { id: 'credits_100', name: '100 Credits', credits: 100, price: 34.99 },
+  { id: 'credits_100', name: '100 Credits', credits: 100, price: 79 },
+  { id: 'credits_500', name: '500 Credits', credits: 500, price: 349 },
+  { id: 'credits_1000', name: '1000 Credits', credits: 1000, price: 599 },
 ];
 
 const SUBSCRIPTION_PLANS: Plan[] = [
-  { id: 'starter', name: 'Starter', price: 10.99, credits: 500 },
-  { id: 'professional', name: 'Professional', price: 32.99, credits: 2000 },
-  { id: 'business', name: 'Business', price: 84.99, credits: 10000 },
+  { id: 'starter', name: 'Starter', price: 10.99, credits: 50 },
+  { id: 'professional', name: 'Professional', price: 44.99, credits: 200 },
+  { id: 'business', name: 'Business', price: 109.99, credits: 500 },
 ];
 
 export default function PricingPage() {

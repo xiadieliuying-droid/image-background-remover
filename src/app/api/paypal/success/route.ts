@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
 
             if (userId) {
               // Add credits based on package
-              const creditAmounts: Record<string, number> = { credits_10: 10, credits_50: 50, credits_100: 100 };
+              const creditAmounts: Record<string, number> = { credits_single: 1, credits_10: 10, credits_100: 100, credits_500: 500, credits_1000: 1000 };
               const credits = creditAmounts[packageId] || 0;
 
               // Update subscription credits
@@ -106,7 +106,7 @@ export async function GET(request: NextRequest) {
           const userId = payload.userId;
 
           if (userId) {
-            const planCredits: Record<string, number> = { starter: 500, professional: 2000, business: 10000 };
+            const planCredits: Record<string, number> = { starter: 50, professional: 200, business: 500 };
 
             await d1.prepare('UPDATE subscriptions SET plan = ?, credits = ? WHERE user_id = ?')
               .bind(`paypal_${planId}`, planCredits[planId] || 500)

@@ -20,9 +20,9 @@ async function getPayPalAccessToken(clientId: string, clientSecret: string): Pro
 }
 
 const SUBSCRIPTION_PLANS = [
-  { id: 'starter', name: 'Starter', price: 10.99, credits: 500 },
-  { id: 'professional', name: 'Professional', price: 32.99, credits: 2000 },
-  { id: 'business', name: 'Business', price: 84.99, credits: 10000 },
+  { id: 'starter', name: 'Starter', price: 10.99, credits: 50 },
+  { id: 'professional', name: 'Professional', price: 44.99, credits: 200 },
+  { id: 'business', name: 'Business', price: 109.99, credits: 500 },
 ];
 
 // Create subscription
