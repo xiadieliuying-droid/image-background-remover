@@ -106,7 +106,7 @@ export async function GET(request: NextRequest) {
           const userId = payload.userId;
 
           if (userId) {
-            const planCredits: Record<string, number> = { starter: 50, professional: 200, business: 500 };
+            const planCredits: Record<string, number> = { starter: 50, basic100: 100, pro300: 300, business: 500 };
 
             await d1.prepare('UPDATE subscriptions SET plan = ?, credits = ? WHERE user_id = ?')
               .bind(`paypal_${planId}`, planCredits[planId] || 500)

@@ -153,7 +153,8 @@ export default function Home() {
   const credits = subscription?.credits ?? 0;
   const planName = subscription?.plan === 'free' ? '免费用户' :
                    subscription?.plan === 'starter' ? 'Starter' :
-                   subscription?.plan === 'professional' ? 'Professional' :
+                   subscription?.plan === 'basic100' ? 'Basic 100' :
+                   subscription?.plan === 'pro300' ? 'Pro 300' :
                    subscription?.plan === 'business' ? 'Business' : null;
 
   return (
