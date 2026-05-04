@@ -10,7 +10,7 @@ interface GoogleTokenResponse {
 }
 
 interface GoogleUserInfo {
-  id: string;
+  sub: string;
   email: string;
   name: string;
   picture?: string;
@@ -112,16 +112,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(`${url.origin}/?error=db_not_configured`);
     }
 
-    // Use id (not sub) - Google OAuth2 userinfo returns 'id' field
-    if (typeof userInfo.id !== 'string' || userInfo.id.length === 0) {
-      throw new Error(`userInfo.id is invalid! type=${typeof userInfo.id} value=${JSON.stringify(userInfo.id)} userInfo=${JSON.stringify(userInfo)}`);
+    // Use sub (not id) - Google OAuth2 v3 userinfo returns 'sub' field
+    if (typeof userInfo.sub !== 'string' || userInfo.sub.length === 0) {
+      throw new Error(`userInfo.sub is invalid! type=${typeof userInfo.sub} value=${JSON.stringify(userInfo.sub)} userInfo=${JSON.stringify(userInfo)}`);
     }
 
     let user: Record<string, unknown> | null = null;
     
     try {
       // Check if user exists
-      const googleId: string = userInfo.id;
+      const googleId: string = userInfo.sub;
       console.log('[DEBUG] binding googleId:', JSON.stringify(googleId), 'len:', googleId.length, 'bytes:', Buffer.byteLength(googleId, 'utf8'));
       
       // Pre-flight: try a simple query first to verify d1 works
@@ -145,7 +145,7 @@ export async function GET(request: NextRequest) {
       // Create new user
       const result = await d1
         .prepare('INSERT INTO users (email, name, google_id) VALUES (?, ?, ?)')
-        .bind(userInfo.email, userInfo.name, userInfo.id)
+        .bind(userInfo.email, userInfo.name, userInfo.sub)
         .run();
       
       user = { 
@@ -179,7 +179,7 @@ export async function GET(request: NextRequest) {
     // Create JWT token
     const token = await createJWT(
       {
-        sub: userInfo.id,
+        sub: userInfo.sub,
         email: userInfo.email,
         name: userInfo.name,
         userId: user.id,
