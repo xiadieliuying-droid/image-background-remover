@@ -47,6 +47,20 @@ export default function Home() {
         setCheckingAuth(false);
       })
       .catch(() => setCheckingAuth(false));
+
+    // Handle PayPal redirect
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('paypal_success') === '1') {
+      // Refresh user data after payment
+      fetch('/api/auth/me')
+        .then(r => r.json())
+        .then(data => {
+          if (data.loggedIn) {
+            setUser(data.user);
+            setSubscription(data.subscription);
+          }
+        });
+    }
   }, []);
 
   const handleFile = (f: File) => {
@@ -177,12 +191,20 @@ export default function Home() {
           )}
 
           {user ? (
-            <button
-              onClick={handleLogout}
-              className="text-slate-400 hover:text-white text-sm transition-colors"
-            >
-              退出登录
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => window.location.href = '/pricing'}
+                className="bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium px-3 py-2 rounded-lg transition-colors"
+              >
+                💳 升级
+              </button>
+              <button
+                onClick={handleLogout}
+                className="text-slate-400 hover:text-white text-sm transition-colors"
+              >
+                退出登录
+              </button>
+            </div>
           ) : (
             <button
               onClick={handleLogin}
