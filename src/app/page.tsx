@@ -49,8 +49,8 @@ export default function Home() {
       .catch(() => setCheckingAuth(false));
 
     // Handle PayPal redirect
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('paypal_success') === '1') {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('paypal_success') === '1') {
       // Refresh user data after payment
       fetch('/api/auth/me')
         .then(r => r.json())
