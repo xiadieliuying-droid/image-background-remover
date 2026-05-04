@@ -154,8 +154,10 @@ export default function Home() {
   const planName = subscription?.plan === 'free' ? '免费用户' :
                    subscription?.plan === 'starter' ? 'Starter' :
                    subscription?.plan === 'basic100' ? 'Basic 100' :
+                   subscription?.plan === 'pro200' ? 'Pro 200' :
                    subscription?.plan === 'pro300' ? 'Pro 300' :
-                   subscription?.plan === 'business' ? 'Business' : null;
+                   subscription?.plan === 'business' ? 'Business' :
+                   subscription?.plan === 'enterprise' ? 'Enterprise' : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex flex-col items-center justify-center p-8">
