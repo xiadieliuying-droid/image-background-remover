@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'login_required', message: '请先登录' }, { status: 401 });
     }
     
-    const jwtSecret = process.env.JWT_SECRET || 'image-background-remover-secret-key';
+    const jwtSecret = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
     const payload = await verifyJWT(token, jwtSecret);
     if (!payload) {
       return NextResponse.json({ error: 'invalid_token', message: '登录已过期，请重新登录' }, { status: 401 });
