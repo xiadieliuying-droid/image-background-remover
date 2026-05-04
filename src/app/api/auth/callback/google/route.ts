@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
 
     // Get user info
     console.log('[DEBUG] about to fetch userinfo with access_token');
-    const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+    const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
       headers: { Authorization: `Bearer ${tokens.access_token}` },
     });
 
