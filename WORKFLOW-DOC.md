@@ -13,19 +13,6 @@
 
 ---
 
-## 一、项目信息
-
-| 项目 | 内容 |
-|------|------|
-| 产品名称 | Image Background Remover |
-| 核心功能 | 上传图片，一键移除背景，返回透明PNG |
-| 技术栈 | Next.js (App Router) + Tailwind CSS + Remove.bg API |
-| 部署平台 | Cloudflare Workers |
-| 仓库 | https://github.com/xiadieliuying-droid/image-background-remover |
-| 访问地址 | https://image-background-remover.xiadieliuying.workers.dev |
-
----
-
 ## 二、完整开发流程（从需求到上线）
 
 ### 阶段1：需求确认
@@ -171,6 +158,194 @@ image-background-remover/
 ├── package.json
 └── MVP-REQ.md                     ← 需求文档
 ```
+
+---
+
+## 七、开发问题与解决方案（真实踩坑记录）
+
+> 以下全是实际遇到的问题，不是瞎编。每个问题都有根因和解决方法。
+
+---
+
+### 问题1：D1 数据库连接失败 — `db_not_configured`
+
+**现象**
+```
+https://image-background-remover.xiadieliuying.workers.dev/?error=db_not_configured
+❌ 服务配置问题，请联系支持
+```
+
+**根因**
+Next.js Edge Runtime 中，`process.env.DB` 无法读取 Cloudflare Workers 的 D1 绑定。用的是旧版 `process.env.DB` 而不是 `getCloudflareContext()`。
+
+**解决方法**
+```typescript
+// 错误写法
+const db = env.DB as D1Database;
+
+// 正确写法
+import { getCloudflareContext } from '@opennextjs/cloudflare';
+const ctx = getCloudflareContext();
+const db = ctx.binding.D1; // 或 ctx.d1
+```
+
+---
+
+### 问题2：Google OAuth 登录后 D1 写入失败 — `D1_TYPE_ERROR: Type 'undefined' not supported`
+
+**现象**
+```
+https://image-background-remover.xiadieliuying.workers.dev/?error=auth_failed&detail=user_query_error%3A%20D1_TYPE_ERROR%3A%20Type%20%27undefined%27%20not%20supported%20for%20value%20%27undefined%27
+```
+
+**根因**
+Google OAuth2 `/userinfo` 接口返回的用户字段是 `id` 而不是 `sub`，代码里一直用 `userInfo.sub` 导致绑定值是 `undefined`。
+
+**解决方法**
+```typescript
+// 错误写法
+const googleId = userInfo.sub;
+
+// 正确写法（Google OAuth2 用 id 字段）
+const googleId = userInfo.id; // Google 返回的是 id 不是 sub
+```
+
+涉及修改：interface 定义、校验逻辑、数据库查询、JWT payload
+
+---
+
+### 问题3：JWT Token 验证始终失败
+
+**现象**
+登录后页面仍然提示未登录，Token 验证不通过。
+
+**根因**
+Token 生成和验证用的 secret key 不一致：
+- 生成时用：`'image-background-remover-secret-key'`
+- 验证时用：`'your-secret-key-change-in-production'`
+
+**解决方法**
+统一 secret key，确保 `JWT_SECRET_KEY` 在所有环境中一致，且不暴露在前端代码里。
+
+---
+
+### 问题4：API 地址写死导致跨环境失效
+
+**现象**
+本地能正常使用，部署到 Workers 后前端调用的 API 地址还是本地地址。
+
+**根因**
+前端代码里写了硬编码的 Workers URL，没有用相对路径。
+
+**解决方法**
+```typescript
+// 错误写法
+const API_URL = 'https://image-remove-worker.xiadieliuying.workers.dev/api/remove';
+
+// 正确写法（相对路径，自动适配部署环境）
+const API_URL = '/api/remove';
+```
+
+---
+
+### 问题5：GitHub Actions 部署时 page.tsx 修改没生效
+
+**现象**
+本地代码已更新，但 GitHub Actions 跑的还是旧版本，部署后功能没有更新。
+
+**根因**
+commit 时只推送了部分文件（API 文件），`page.tsx` 漏掉了没有 commit。
+
+**解决方法**
+每次 commit 前用 `git status` 确认所有修改的文件都已 staged。或者用 `git add .` 暂存所有修改。
+
+---
+
+### 问题6：useEffect 中变量重复声明导致构建失败
+
+**现象**
+```
+Error: Cannot access 'params' before initialization
+```
+
+**根因**
+`useEffect` 内部用 `const params = ...` 声明了变量，但外层也有同名 `params`，导致重复声明。
+
+**解决方法**
+外层和内层变量不要同名，或者把 `useEffect` 内的逻辑抽成独立函数。
+
+---
+
+### 问题7：环境变量未正确注入导致生产环境报错
+
+**现象**
+本地 `npm run dev` 正常，部署后出现 `xxx is undefined` 或配置缺失报错。
+
+**根因**
+GitHub Actions 部署时没有把所有必需的环境变量（Secrets）传入，导致生产环境缺少配置。
+
+**解决方法**
+在 GitHub 仓库 Settings → Secrets 添加所有密钥：
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_ACCOUNT_ID`
+- `REMOVE_BG_API_KEY`
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`
+- `PAYPAL_CLIENT_ID` / `PAYPAL_CLIENT_SECRET`
+
+并在 `wrangler.jsonc` 中通过 `patch.js` 脚本将 Secrets 动态注入。
+
+---
+
+### 问题8：PayPal 沙箱费率导致套餐亏本
+
+**现象**
+定价 $10.99/月的 Starter 套餐，实际 PayPal 收费约 $11.30（含 2.99%+$0.30），出现负利润。
+
+**根因**
+定价未计算 PayPal 交易费率（2.99% + $0.30/笔）。
+
+**解决方法**
+重新定价，确保利润空间：
+| 套餐 | 最低定价建议 |
+|------|------------|
+| Starter | ≥ $11.99/月 |
+| Professional | ≥ $34.99/月 |
+| Business | ≥ $86.99/月 |
+
+---
+
+### 问题9：opennextjs-cloudflare adapter 缺失导致构建失败
+
+**现象**
+GitHub Actions 报错，提示找不到 `@opennextjs/cloudflare`。
+
+**根因**
+依赖没有安装或版本不对。
+
+**解决方法**
+```bash
+npm install opennextjs-cloudflare @opennextjs/cloudflare
+```
+在 CI/CD 的 install 步骤后也要执行：
+```yaml
+- name: Install dependencies
+  run: |
+    npm ci
+    npm install opennextjs-cloudflare @opennextjs/cloudflare
+```
+
+---
+
+### 问题10：Workers 域名被墙导致国内访问失败
+
+**现象**
+部署成功，但国内用户无法访问。
+
+**根因**
+`.workers.dev` 域名在国内无法访问。
+
+**解决方法**
+绑定自有域名（如 `img.xxxx.com`），通过 CNAME 解析到 Workers，避免被墙。
 
 ---
 
