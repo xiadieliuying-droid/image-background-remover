@@ -13,6 +13,19 @@
 
 ---
 
+## 一、项目信息
+
+| 项目 | 内容 |
+|------|------|
+| 产品名称 | Image Background Remover |
+| 核心功能 | 上传图片，一键移除背景，返回透明PNG |
+| 技术栈 | Next.js (App Router) + Tailwind CSS + Remove.bg API |
+| 部署平台 | Cloudflare Workers |
+| 仓库 | https://github.com/xiadieliuying-droid/image-background-remover |
+| 访问地址 | https://image-background-remover.xiadieliuying.workers.dev |
+
+---
+
 ## 二、完整开发流程（从需求到上线）
 
 ### 阶段1：需求确认
@@ -53,7 +66,7 @@
 ### 阶段5：CI/CD自动化
 | 环节 | 操作 | 产出物 |
 |------|------|--------|
-| 编写GitHub Actions | `.github/workflows/deploy.yml` | CI/CD流程 |
+| 编写GitHub Actions | `.github/workflows/ci-cd.yml` | CI/CD流程 |
 | 推送触发部署 | `git push` | 自动部署 |
 | 验证上线 | 访问 workers URL | 上线确认 |
 
@@ -92,25 +105,31 @@
 
 ---
 
-## 四、GitHub 工作流（deploy.yml）详解
+## 四、GitHub 工作流（ci-cd.yml）详解
 
 ```
 触发条件：
-  - push 到任意分支（自动部署）
+  - push 到 main 分支（自动部署）
+  - pull_request（检查）
   - workflow_dispatch（手动触发）
 
 环境：
   - Node.js 22
   - ubuntu-latest
 
+Job 串联（必须前面的成功才能跑后面的）：
+  lint → build → test → deploy → status
+
 步骤：
   1. Checkout 代码
-  2. 安装 Node.js 22
-  3. 安装依赖（npm ci）
-  4. 安装 opennextjs-cloudflare
+  2. Lint（ESLint + TypeScript检查）
+  3. Build（Next.js生产构建）
+  4. Test（预留测试位）
   5. patch.js 注入 OAuth 和 PayPal 密钥到 wrangler.jsonc
   6. 构建 + 部署（npm run deploy）
      - 自动注入 CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, REMOVE_BG_API_KEY 等密钥
+  7. 部署后健康检查（curl验证200）
+  8. 汇总部署状态
 ```
 
 ---
@@ -143,7 +162,8 @@ image-background-remover/
 ├── public/                        ← 静态资源
 ├── .github/
 │   └── workflows/
-│       └── deploy.yml             ← CI/CD部署流程
+│       ├── deploy.yml          ← 简单部署流程（旧）
+│       └── ci-cd.yml           ← 完整CI/CD流程（Lint→Build→Test→Deploy→Status）
 ├── open-next.config.ts            ← OpenNext Cloudflare适配器配置
 ├── wrangler.jsonc                 ← Cloudflare Workers配置
 ├── patch.js                       ← 部署前注入密钥的脚本
@@ -154,24 +174,116 @@ image-background-remover/
 
 ---
 
-## 七、新功能开发流程示例
+## 八、（可选模块）账号登录系统
 
-以"新增PayPal支付功能"为例：
+适用于：**出海产品 / 需要用户识别 / 限制匿名使用**
 
-1. **本地开发** → 在 `src/app/pricing/` 新增付费页面
-2. **测试** → `npm run dev` 验证功能
-3. **提交** → `git add . && git commit -m "feat: add PayPal pricing page" && git push`
-4. **自动部署** → GitHub Actions 检测到 push，自动运行 `deploy.yml` → 构建 → 部署到 Cloudflare
-5. **验证** → 访问 `https://image-background-remover.xiadieliuying.workers.dev/pricing`
+### 技术方案：Google OAuth
+
+| 项目 | 内容 |
+|------|------|
+| 适用场景 | 出海产品、需确认用户身份、防止滥用 |
+| 实现方式 | Google OAuth 2.0（NextAuth.js） |
+| 配置位置 | GitHub Secrets → `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` |
+| 本地测试 | 需在 `.dev.vars` 中配置相同密钥 |
+| 数据存储 | 用户 email + name 存入 D1 数据库 |
+
+### 开发流程
+
+1. 在 [Google Cloud Console](https://console.cloud.google.com/) 创建 OAuth 2.0 Client
+2. 配置 Authorized redirect URI：`https://image-background-remover.xiadieliuying.workers.dev/api/auth/callback/google`
+3. 添加 GitHub Secrets：`GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`
+4. 修改 `patch.js` 将密钥注入 `wrangler.jsonc`
+5. 实现登录逻辑（参考项目中已有的 auth 配置）
+6. 提交 → 自动部署
+
+### JWT 会话管理
+
+- 登录成功后生成 JWT token，存储在 cookie 中
+- 后续请求通过 token 识别用户身份
+- token 验证 secret key 统一使用 `JWT_SECRET_KEY`
 
 ---
 
-## 八、当前项目状态
+## 九、（可选模块）支付系统
+
+适用于：**出海产品 / 需要收费 / 订阅或按次付费**
+
+### 技术方案：PayPal 沙箱 + 生产
+
+| 项目 | 内容 |
+|------|------|
+| 适用场景 | 付费去除背景限制、订阅套餐、积分包 |
+| 实现方式 | PayPal REST API（沙箱环境已配置） |
+| 配置位置 | GitHub Secrets → `PAYPAL_CLIENT_ID` / `PAYPAL_CLIENT_SECRET` |
+| 订阅模式 | Starter / Professional / Business 月订阅 |
+| 积分包 | 按次购买（10/50/100次） |
+
+### PayPal 费率计算（成本）
+
+| 套餐 | 价格 | 成本（含PayPal费率） | 利润空间 |
+|------|------|---------------------|----------|
+| Starter | $10.99/月 | $11.30（2.99%+$0.30） | -$0.31（亏） |
+| Professional | $32.99/月 | $33.69（2.99%+$0.30） | -$0.70（亏） |
+| Business | $84.99/月 | $85.93（2.99%+$0.30） | -$0.94（亏） |
+
+**建议定价策略**：确保每个套餐利润 ≥ $1，需定价到 $11.99 / $34.99 / $86.99 或以上
+
+### 开发流程
+
+1. 在 [PayPal Developer](https://developer.paypal.com/) 创建 App 获取 Client ID + Secret
+2. 添加 GitHub Secrets：`PAYPAL_CLIENT_ID` / `PAYPAL_CLIENT_SECRET`
+3. 配置 PayPal 沙箱回调 URL
+4. 实现订阅/积分包购买逻辑
+5. 测试沙箱支付流程
+6. 切换到生产环境（更换密钥）
+
+### 当前状态
+
+- ✅ PayPal 沙箱已配置
+- ✅ 订阅套餐（Starter/Professional/Business）+ 积分包双模式
+- ✅ pricing 页面已完成
+- ⚠️ 生产环境需切换为真实 PayPal 密钥
+
+---
+
+## 十、新功能开发流程示例
+
+### 示例A：新增可选模块（以Google登录为例）
+
+1. 在 Google Cloud Console 创建 OAuth Client
+2. 添加 GitHub Secrets：`GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`
+3. 修改 `patch.js` 注入密钥
+4. 编写登录页面和 API 路由
+5. 本地测试 → `npm run dev`
+6. 提交 → `git push` → GitHub Actions 自动部署
+7. 验证 → 访问网站跳转 Google 登录
+
+### 示例B：新增付费功能（以订阅套餐为例）
+
+1. 在 PayPal 开发者平台创建订阅产品
+2. 添加 GitHub Secrets：`PAYPAL_CLIENT_ID` / `PAYPAL_CLIENT_SECRET`
+3. 实现 `/api/subscribe` 接口
+4. 配置 PayPal Webhook 回调
+5. 测试沙箱支付
+6. 提交 → 部署 → 上线
+
+### 示例C：常规功能迭代
+
+1. 本地开发 → 修改代码
+2. 测试 → `npm run dev`
+3. 提交 → `git add . && git commit -m "描述" && git push`
+4. GitHub Actions 自动跑：Lint → Build → Test → Deploy
+5. 验证上线 → 访问 workers URL
+
+---
+
+## 十一、当前项目状态
 
 | 项目 | 状态 | 说明 |
 |------|------|------|
 | MVP功能（去背） | ✅ 已上线 | 核心功能正常 |
-| Google OAuth登录 | ✅ 已完成 | 需登录才能使用 |
-| PayPal支付 | ✅ 沙箱已完成 | 订阅+积分包双模式 |
-| 付费UI | ✅ 已完成 | pricing页面 |
+| Google OAuth登录 | ✅ 可选模块 | 出海需求可接入 |
+| PayPal支付 | ✅ 可选模块 | 出海需求可接入 |
+| 付费UI（pricing） | ✅ 可选模块 | 已完成 |
 | CI/CD自动化 | ✅ 已配置 | push即自动部署 |
