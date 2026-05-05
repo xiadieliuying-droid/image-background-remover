@@ -417,6 +417,188 @@ GitHub token 权限是分离的：
 
 ---
 
+### 问题15：wrangler deploy 找不到命令 — 依赖未装
+
+**现象**
+本地 `wrangler deploy` 报错 command not found，或者部署时找不到 `@opennextjs/cloudflare`。
+
+**根因**
+wrangler 和 opennextjs-cloudflare adapter 没有全局安装或项目依赖里没有。
+
+**解决方法**
+```bash
+npm install wrangler opennextjs-cloudflare @opennextjs/cloudflare
+```
+本地先跑通 `npx wrangler whoami` 确认能连上，再推代码。
+
+---
+
+### 问题16：wrangler login vs API token — 本地部署认证方式混淆
+
+**现象**
+`wrangler login` 弹出浏览器登录，但某些环境没有浏览器；或者 token 认证方式不清楚。
+
+**根因**
+Cloudflare Wrangler 支持两种认证方式：
+- `wrangler login` — 浏览器交互式登录，适合本地开发
+- `wrangler config` — 用 API Token，适合 CI/CD 服务器
+
+**解决方法**
+本地开发用 `npx wrangler login`，GitHub Actions 用 API Token（通过环境变量 `CLOUDFLARE_API_TOKEN` 自动注入，不需要手动登录）。
+
+---
+
+### 问题17：Google OAuth invalid_client — 凭证配置错误
+
+**现象**
+Google 登录报错：`401 invalid_client，flowName=GeneralOAuthFlow`
+
+**根因**
+`GOOGLE_CLIENT_ID` 或 `GOOGLE_CLIENT_SECRET` 配置错误，比如：
+- 填成了占位符文本（如 `REPLACE_WITH_GITHUB_SECRET`）
+- 生产环境和开发环境混用
+- Client Secret 填错
+
+**解决方法**
+1. 检查 Google Cloud Console → Credentials → OAuth 2.0 Client 配置
+2. 确认 Authorized redirect URI 与实际一致
+3. 确认 `wrangler.jsonc` 里填的是真实值而不是占位符
+4. 部署后如果还报错，用 curl 验证：`curl -X POST https://accounts.google.com/.well-known/openid-configuration`
+
+---
+
+### 问题18：patch.js 注入占位符导致线上的凭证是假的
+
+**现象**
+部署后 Google OAuth 报错，但 `.env` 文件里明明有正确的值。
+
+**根因**
+`wrangler.jsonc` 里的 secrets 是占位符（如 `REPLACE_WITH_GITHUB_SECRET`），没有通过 `patch.js` 正确替换就打包了。
+
+**解决方法**
+在 CI/CD 中，build 之前必须跑 `node patch.js`，确保真实密钥在构建时注入。`patch.js` 读取 `process.env.GOOGLE_CLIENT_ID` 等环境变量，替换 `wrangler.jsonc` 中的占位符。
+
+---
+
+### 问题19：登录成功后页面仍显示未登录 — JWT 密钥不一致
+
+**现象**
+Google 登录成功回调，但刷新页面后仍显示未登录，或者提示"登录过期"。
+
+**根因**
+JWT token 签名密钥在生成和验证时不匹配：
+- 生成时用：`'image-background-remover-secret-key'`
+- 验证时用：`'your-secret-key-change-in-production'`
+
+**解决方法**
+统一所有环境的 JWT secret key，确保 `generateToken()` 和 `verifyToken()` 用同一个值。
+
+---
+
+### 问题20：Google OAuth callback 用错字段 — id vs sub
+
+**现象**
+登录后 D1 写入失败：`D1_TYPE_ERROR: Type 'undefined' not supported for value 'undefined'`
+
+**根因**
+Google OAuth2 `/userinfo` 接口返回的字段是 `id` 而不是 `sub`，代码里用 `userInfo.sub` 取到 undefined。
+
+**解决方法**
+```typescript
+// 错误
+const googleId = userInfo.sub;
+
+// 正确
+const googleId = (userInfo as any).id;
+```
+涉及接口定义、校验逻辑、数据库查询、JWT payload 四个地方都要改。
+
+---
+
+### 问题21：Worker GET / 返回 405 — 路由只接受 POST
+
+**现象**
+访问网站首页或 GET 请求返回 `405 Method Not Allowed`。
+
+**根因**
+Next.js Edge Worker 只暴露了 `POST /api/remove` 等 API 路由，访问 GET `/` 没有对应的 handler。
+
+**解决方法**
+这是正常行为，不是报错。Cloudflare Workers 的 Next.js 应用默认只处理 API 路由，前端页面靠 Worker 的默认响应。如果需要 GET 路由响应，可以加一个 `src/app/page.tsx` 作为入口，或者用 `_next/static` 路由。
+
+---
+
+### 问题22：生产环境缺少环境变量导致页面空白或报错
+
+**现象**
+本地 `npm run dev` 正常，部署后页面空白或控制台报错 `xxx is undefined`。
+
+**根因**
+`.env.local` 里的变量没有加到 GitHub Secrets，或者 `patch.js` 没有在构建前运行。
+
+**解决方法**
+1. 确认所有环境变量都加到 GitHub Secrets
+2. 确认 `patch.js` 在 CI/CD build 步骤之前运行
+3. 可以在本地先跑 `npm run build` 看是否有变量缺失的警告
+
+---
+
+### 问题23：Cloudflare Pages 部署返回 404 — 构建产物格式不兼容
+
+**现象**
+Cloudflare Pages 原生 GitHub 集成部署后返回 404，但 wrangler deploy 正常。
+
+**根因**
+Cloudflare Pages 的构建系统不知道如何处理 `@opennextjs/cloudflare` 的 Worker 输出格式（OpenNext 输出的是 Worker bundle，不是静态文件）。
+
+**解决方法**
+不要用 Pages 原生 GitHub 集成，改为用 `@opennextjs/cloudflare` + `wrangler deploy` 方式部署到 Workers。
+
+---
+
+### 问题24：GitHub Push Protection 拦截包含密钥的 commit
+
+**现象**
+`git push` 被拒绝：`Push cannot contain secrets`，commit 被 GH013 规则拦截。
+
+**根因**
+文档或代码里写了完整密钥（如 `sk-api-xxxx`、`ghp_xxxx` 等），GitHub 扫描到后自动阻止推送。
+
+**解决方法**
+1. 用 `git reset --soft HEAD~1` 撤销 commit
+2. 修改文件，把完整密钥改成缩略形式（如 `sk-api-xxxx...`）
+3. 重新 commit + push
+
+---
+
+### 问题25：session compaction 导致上下文丢失 — 重要记忆被遗忘
+
+**现象**
+开新会话后 AI 不记得之前的决定、上下文或已做过的操作。
+
+**根因**
+session 被压缩（compaction）时，只有 summary 被保留，详细历史丢失。tdai_conversation_search 向量搜索索引仍然有效，但当前 session 的上下文需要从 memory/tdai 中恢复。
+
+**解决方法**
+1. 重要内容必须写入 `memory/YYYY-MM-DD.md`
+2. 新会话开始时先调用 `tdai_memory_search` / `tdai_conversation_search` 恢复上下文
+3. 避免在同一个 session 内做太多决策而不记录
+
+---
+
+### 问题26：Workers 部署到旧域名导致请求打到废弃的 Worker
+
+**现象**
+部署了新代码，但网站行为没变；或者返回 405/500 而旧版本正常。
+
+**根因**
+GitHub Actions 配置的 worker 名称是 `image-background-remover`，但 DNS 可能还指向旧的 `image-remove-worker`（已废弃，返回 405）。
+
+**解决方法**
+确认 Workers 名称配置一致，删除废弃的 Worker 或确保 DNS 指向正确的 worker。
+
+---
+
 ## 八、（可选模块）账号登录系统
 
 适用于：**出海产品 / 需要用户识别 / 限制匿名使用**
