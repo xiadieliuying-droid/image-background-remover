@@ -45,9 +45,11 @@
 |------|------|--------|
 | 安装Cloudflare适配器 | `npm install opennextjs-cloudflare @opennextjs/cloudflare` | 依赖 |
 | 配置open-next | `open-next.config.ts` | 适配器配置 |
-| 配置wrangler | `wrangler.jsonc` + patch.js | 部署配置 |
+| 配置wrangler | `wrangler.jsonc` + patch.js（包含D1 binding）| 部署配置 |
 | 配置Secrets | 在GitHub仓库 Settings → Secrets 添加所有密钥 | GitHub Secrets |
+| 配置Worker名称 | 在仓库 Settings → Variables 添加 `WORKER_NAME` | GitHub Variables |
 | 测试构建 | `npm run build` | 构建产物 |
+| 部署前检查 | `npx wrangler whoami` 确认Cloudflare已登录 | 认证确认 |
 | 手动部署测试 | `npm run deploy` | 验证部署 |
 
 ### 阶段5：CI/CD自动化
@@ -105,18 +107,20 @@
   - ubuntu-latest
 
 Job 串联（必须前面的成功才能跑后面的）：
-  lint → build → test → deploy → status
+  lint → build → deploy → status
 
 步骤：
   1. Checkout 代码
   2. Lint（ESLint + TypeScript检查）
   3. Build（Next.js生产构建）
-  4. Test（预留测试位）
-  5. patch.js 注入 OAuth 和 PayPal 密钥到 wrangler.jsonc
-  6. 构建 + 部署（npm run deploy）
-     - 自动注入 CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, REMOVE_BG_API_KEY 等密钥
-  7. 部署后健康检查（curl验证200）
-  8. 汇总部署状态
+  4. Install dependencies（包含 opennextjs-cloudflare）
+  5. Validate secrets（检查密钥格式+wrangler.jsonc无占位符）← 新增
+  6. Run patch.js（注入密钥到 wrangler.jsonc）← 在 build 之前
+  7. Verify Cloudflare credentials（wrangler whoami）
+  8. Build + Deploy（npm run deploy）
+  9. Health check（curl验证200）
+  10. API 冒烟测试（POST /api/remove，验证401/405响应）
+  11. 汇总部署状态
 ```
 
 ---
@@ -128,7 +132,8 @@ Job 串联（必须前面的成功才能跑后面的）：
 | `npm run dev` | 本地开发服务器（http://localhost:3000） |
 | `npm run build` | 构建生产版本 |
 | `npm run deploy` | 部署到 Cloudflare Workers |
-| `npx wrangler whoami` | 检查 Cloudflare 登录状态 |
+| `npx wrangler whoami` | 检查 Cloudflare 登录状态（部署前必做） |
+| `node scripts/validate-secrets.js` | 检查密钥格式是否正确（本地自测用） |
 
 ---
 
@@ -147,12 +152,13 @@ image-background-remover/
 │   └── lib/
 │       └── remove.ts              ← Remove.bg 调用封装
 ├── public/                        ← 静态资源
+├── scripts/
+│   └── validate-secrets.js         ← CI/CD 密钥验证脚本（检查格式+占位符）
 ├── .github/
 │   └── workflows/
-│       ├── deploy.yml          ← 简单部署流程（旧）
-│       └── ci-cd.yml           ← 完整CI/CD流程（Lint→Build→Test→Deploy→Status）
+│       └── ci-cd.yml           ← 完整CI/CD流程（Lint→Build→Deploy→Status）
 ├── open-next.config.ts            ← OpenNext Cloudflare适配器配置
-├── wrangler.jsonc                 ← Cloudflare Workers配置
+├── wrangler.jsonc                 ← Cloudflare Workers配置（包含D1 binding）
 ├── patch.js                       ← 部署前注入密钥的脚本
 ├── next.config.ts
 ├── package.json
