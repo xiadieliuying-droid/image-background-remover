@@ -380,13 +380,28 @@ token 只有 Pages API 权限，没有 Workers 权限。`@opennextjs/cloudflare`
 在 Cloudflare Dashboard 创建新 API Token，权限要求：
 - ✅ Workers
 - ✅ Pages
-- ✅ D1（如果需要直接调 D1 REST API）
-
-已验证可用的 token：`cfat_lYwvEihD...`（Workers + Pages）
 
 ---
 
-### 问题13：GitHub token workflow 和 repo 权限分离导致部署流程不稳定
+### 问题13：Cloudflare token 缺少 D1 权限导致直接 API 调用失败
+
+**现象**
+本地直接 curl 调用 D1 REST API 返回 403 Forbidden。
+```
+curl https://api.cloudflare.com/client/v4/accounts/{id}/d1/database/{db_id} -H "Authorization: Bearer {token}"
+→ {"success": false, "errors": [{"code": 10000, "message": "Forbidden"]}]
+```
+
+**根因**
+token 没有 D1 API 权限。不过项目使用 `getCloudflareContext()` 在 Workers 运行时访问 D1，不需要 D1 API 权限。
+
+**解决方法**
+- 如果只需要在 Workers 运行时用 D1 → 不需要额外的 D1 API 权限
+- 如果需要直接调 D1 REST API → token 需要开通 Account-level D1 Read/Write 权限
+
+---
+
+### 问题14：GitHub token workflow 和 repo 权限分离导致部署流程不稳定
 
 **现象**
 同一个项目有的 token 能 push，有的不能；有的有 workflow 权限但无法部署。
@@ -398,11 +413,7 @@ GitHub token 权限是分离的：
 - 两个必须同时拥有才能完整跑 CI/CD
 
 **解决方法**
-创建 Personal Access Token 时同时勾选 `repo`（所有）和 `workflow`。主要 token 清单：
-| Token | workflow | repo | 备注 |
-|-------|----------|-----|------|
-| `ghp_cRmAm1VjM1Ta...` | ✅ | ✅ | 主力，已验证 |
-| `ghp_PnYboNF0dO7a...` | ❌ | ✅ | 只有 repo |
+创建 Personal Access Token 时同时勾选 `repo`（所有）和 `workflow`。
 
 ---
 
