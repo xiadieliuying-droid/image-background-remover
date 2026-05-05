@@ -349,6 +349,63 @@ npm install opennextjs-cloudflare @opennextjs/cloudflare
 
 ---
 
+### 问题11：GitHub token 缺少 workflow 权限，无法推送 workflow 文件
+
+**现象**
+```
+! [remote rejected] main -> main (refusing to allow an OAuth application to create or modify workflow files without workflow scope)
+```
+
+**根因**
+使用的 GitHub token 没有 `workflow` scope，无法创建或修改 `.github/workflows/` 下的文件。
+
+**解决方法**
+1. **手动创建 workflow 文件**：在 GitHub 仓库页面直接创建 `.github/workflows/deploy.yml`
+2. **更换 token**：使用带有 `workflow` scope 的 token
+
+---
+
+### 问题12：Cloudflare token 权限不足 — membership error
+
+**现象**
+手动 `wrangler deploy` 能成功，但通过 `@opennextjs/cloudflare` 部署时报错：
+```
+error: Workers API: access denied (if you are a member of an account, you may need to request permission to access that account)
+```
+
+**根因**
+token 只有 Pages API 权限，没有 Workers 权限。`@opennextjs/cloudflare` 使用 Workers API 部署，需要 token 有 Workers 权限。
+
+**解决方法**
+在 Cloudflare Dashboard 创建新 API Token，权限要求：
+- ✅ Workers
+- ✅ Pages
+- ✅ D1（如果需要直接调 D1 REST API）
+
+已验证可用的 token：`cfat_lYwvEihD...`（Workers + Pages）
+
+---
+
+### 问题13：GitHub token workflow 和 repo 权限分离导致部署流程不稳定
+
+**现象**
+同一个项目有的 token 能 push，有的不能；有的有 workflow 权限但无法部署。
+
+**根因**
+GitHub token 权限是分离的：
+- `repo` scope — 能读写仓库代码
+- `workflow` scope — 能读写 workflow 文件
+- 两个必须同时拥有才能完整跑 CI/CD
+
+**解决方法**
+创建 Personal Access Token 时同时勾选 `repo`（所有）和 `workflow`。主要 token 清单：
+| Token | workflow | repo | 备注 |
+|-------|----------|-----|------|
+| `ghp_cRmAm1VjM1Ta...` | ✅ | ✅ | 主力，已验证 |
+| `ghp_PnYboNF0dO7a...` | ❌ | ✅ | 只有 repo |
+
+---
+
 ## 八、（可选模块）账号登录系统
 
 适用于：**出海产品 / 需要用户识别 / 限制匿名使用**
